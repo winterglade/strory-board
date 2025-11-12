@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📽️ StoryboardGen</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .scene { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; }
+    .scene-img { flex: 1; min-width: 200px; }
+    .scene-text { flex: 2; min-width: 300px; }
+    img { width: 100%; height: auto; border-radius: 4px; }
+    button { background: #0966c2; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid #0966c2; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <h1>📽️ StoryboardGen</h1>
+  <p>Генерация сценариев и раскадровок — бесплатно, без регистрации</p>
+
+  <div class="card">
+    <label>💡 Идея видео:<br>
+      <input id="idea" value="Студент приглашает другую студентку в кино" style="width:100%" />
+    </label>
+    <br><br>
+    <label>🎭 Тон:<br>
+      <select id="tone">
+        <option>трогательный</option>
+        <option>юмористический</option>
+        <option>динамичный</option>
+        <option>образовательный</option>
+      </select>
+    </label>
+    <br><br>
+    <button id="generate">🚀 Создать сценарий</button>
+    <span id="spinner" style="display:none" class="loading"></span>
+  </div>
+
+  <div id="output"></div>
+
+  <script>
+    const ideaEl = document.getElementById('idea');
+    const toneEl = document.getElementById('tone');
+    const genBtn = document.getElementById('generate');
+    const spinner = document.getElementById('spinner');
+    const output = document.getElementById('output');
+
+    genBtn.addEventListener('click', async () => {
+      const idea = ideaEl.value.trim();
+      const tone = toneEl.value;
+      if (!idea) return alert('Введите идею!');
+
+      genBtn.disabled = true;
+      spinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('http://localhost:8000/api/generate-script', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idea, tone })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+
+        const data = await res.json();
+        renderScript(data);
+      } catch (e) {
+        output.innerHTML = `<div class="card" style="color:red">❌ Ошибка: ${e.message}</div>`;
+      } finally {
+        genBtn.disabled = false;
+        spinner.style.display = 'none';
+      }
+    });
+
+    function renderScript(data) {
+      output.innerHTML = `
+        <h2>📜 ${data.title}</h2>
+        ${data.scenes.map(s => `
+          <div class="card scene">
+            <div class="scene-img">
+              <div style="background:#f3f4f6; height:180px; display:flex; align-items:center; justify-content:center; border-radius:4px">
+                <em>🖼️ Изображение генерируется через HF API</em>
+              </div>
+              <button style="margin-top:8px" onclick="alert('В полной версии: перегенерация сцены')">
+                🔄 Перегенерировать
+              </button>
+            </div>
+            <div class="scene-text">
+              <h3>Сцена ${s.scene_num}</h3>
+              <p><strong>Описание:</strong> ${s.visual_description}</p>
+              ${s.voiceover ? `<p><strong>Voiceover:</strong> «${s.voiceover}»</p>` : ''}
+              ${s.dialogue ? `<p><strong>Диалог:</strong> «${s.dialogue}»</p>` : ''}
+            </div>
+          </div>
+        `).join('')}
+        <div class="card">
+          <p>💡 Совет: для полной раскадровки добавьте endpoint <code>/api/generate-storyboard</code> в бэкенд.</p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
